@@ -34,6 +34,10 @@ public class MessageStorageService {
     }
 
     public Path save(String queueName, String queueUrl, Message message) throws IOException {
+        return save(queueName, queueUrl, message, null);
+    }
+
+    public Path save(String queueName, String queueUrl, Message message, String messageGroupId) throws IOException {
         Instant receivedAt = Instant.now();
         Map<String, String> attributes = new HashMap<>();
         if (message.messageAttributes() != null) {
@@ -53,7 +57,11 @@ public class MessageStorageService {
         );
 
         String datePart = DATE_DIR.format(receivedAt);
-        Path dir = storageRoot.resolve(sanitize(queueName)).resolve(datePart);
+        Path dir = storageRoot.resolve(sanitize(queueName));
+        if (messageGroupId != null && !messageGroupId.isBlank()) {
+            dir = dir.resolve(sanitize(messageGroupId));
+        }
+        dir = dir.resolve(datePart);
         Files.createDirectories(dir);
 
         String safeId = sanitize(message.messageId());

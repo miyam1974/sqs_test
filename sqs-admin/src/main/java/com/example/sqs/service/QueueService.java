@@ -12,6 +12,7 @@ import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.ListQueuesRequest;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
+import software.amazon.awssdk.services.sqs.model.QueueDoesNotExistException;
 import software.amazon.awssdk.services.sqs.model.SetQueueAttributesRequest;
 
 import java.util.List;
@@ -101,7 +102,16 @@ public class QueueService {
     }
 
     public String getQueueUrl(String queueName) {
-        return sqsClient.getQueueUrl(GetQueueUrlRequest.builder().queueName(queueName).build()).queueUrl();
+        try {
+            return sqsClient.getQueueUrl(GetQueueUrlRequest.builder().queueName(queueName).build()).queueUrl();
+        } catch (QueueDoesNotExistException e) {
+            if (!queueName.endsWith(".fifo")) {
+                return sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                        .queueName(queueName + ".fifo")
+                        .build()).queueUrl();
+            }
+            throw e;
+        }
     }
 
     public QueueEditForm toEditForm(String queueUrl) {

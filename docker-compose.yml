@@ -47,3 +47,40 @@ services:
         condition: service_healthy
       sqs-app:
         condition: service_started
+
+  sqs-send-load:
+    build: ./sqs-admin
+    profiles: ["load-test"]
+    entrypoint:
+      - java
+      - -jar
+      - /app/app.jar
+      - --spring.profiles.active=send-load
+    environment:
+      AWS_SQS_ENDPOINT: http://elasticmq:9324
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: x
+      AWS_SECRET_ACCESS_KEY: x
+    depends_on:
+      elasticmq:
+        condition: service_healthy
+
+  sqs-receive-load:
+    build: ./sqs-admin
+    profiles: ["load-test"]
+    entrypoint:
+      - java
+      - -jar
+      - /app/app.jar
+      - --spring.profiles.active=receive-load
+    environment:
+      AWS_SQS_ENDPOINT: http://elasticmq:9324
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: x
+      AWS_SECRET_ACCESS_KEY: x
+      MESSAGE_STORAGE_DIR: /app/data/messages
+    volumes:
+      - ./data/messages:/app/data/messages
+    depends_on:
+      elasticmq:
+        condition: service_healthy
