@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div th:fragment="selector" th:remove="tag">
+    <div class="btn-group w-100" role="group" aria-label="キュータイプ">
+        <input type="radio" class="btn-check" name="queueType" id="queueTypeStandard"
+               th:field="*{queueType}" th:value="STANDARD" autocomplete="off"/>
+        <label class="btn btn-outline-secondary" for="queueTypeStandard">標準</label>
+        <input type="radio" class="btn-check" name="queueType" id="queueTypeFifo"
+               th:field="*{queueType}" th:value="FIFO" autocomplete="off"/>
+        <label class="btn btn-outline-primary" for="queueTypeFifo">FIFO</label>
+    </div>
+    <div class="form-text mt-1">
+        標準: 高スループット・順不同。FIFO: 順序保証・重複排除（名前に .fifo を付与）。
+    </div>
+    <div class="text-danger small" th:errors="*{queueType}"></div>
+</div>
+
+<span th:fragment="badge(fifo)" th:remove="tag">
+    <span th:if="${fifo}" class="badge bg-info">FIFO</span>
+    <span th:unless="${fifo}" class="badge bg-secondary">標準</span>
+</span>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('キュー編集', ~{::section})}">
+<section>
+    <div th:replace="~{fragments/alerts :: alerts}"></div>
+    <h1 class="h3 mb-3">キュー属性の編集</h1>
+    <div class="alert alert-info">
+        キュータイプ（標準 / FIFO）は作成時にのみ指定できます。変更する場合は新しいキューを作成してください。
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form th:action="@{/queues/{enc}/edit(enc=${@sqsWeb.encodeQueueUrl(queueEditForm.queueUrl)})}"
+                  th:object="${queueEditForm}" method="post" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">キュー名</label>
+                    <input class="form-control" th:field="*{name}" readonly/>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">キュータイプ</label>
+                    <div class="pt-2">
+                        <span th:replace="~{fragments/queue-type :: badge(${queueEditForm.fifo})}"></span>
+                        <input type="hidden" th:field="*{queueType}"/>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">可視性タイムアウト (秒)</label>
+                    <input class="form-control" type="number" th:field="*{visibilityTimeout}" min="0"/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">保持期間 (秒)</label>
+                    <input class="form-control" type="number" th:field="*{messageRetentionPeriod}" min="0"/>
+                </div>
+                <div class="col-md-4" th:if="${!queueEditForm.fifo}">
+                    <label class="form-label">遅延 (秒)</label>
+                    <input class="form-control" type="number" th:field="*{delaySeconds}" min="0"/>
+                </div>
+                <div class="col-md-6" th:if="${queueEditForm.fifo}">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" th:field="*{contentBasedDeduplication}"/>
+                        <label class="form-check-label">コンテンツベース重複排除</label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">更新</button>
+                    <a class="btn btn-link"
+                       th:href="@{/queues/{enc}(enc=${@sqsWeb.encodeQueueUrl(queueEditForm.queueUrl)})}">キャンセル</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+</html>

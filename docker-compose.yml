@@ -1,0 +1,49 @@
+services:
+  elasticmq:
+    image: softwaremill/elasticmq-native:latest
+    ports:
+      - "9324:9324"
+      - "9325:9325"
+    volumes:
+      - ./elasticmq.conf:/opt/elasticmq.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9324/?Action=ListQueues&Version=2012-11-05"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  sqs-app:
+    build: ./sqs-admin
+    ports:
+      - "8080:8080"
+    environment:
+      AWS_SQS_ENDPOINT: http://elasticmq:9324
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: x
+      AWS_SECRET_ACCESS_KEY: x
+      MESSAGE_STORAGE_DIR: /app/data/messages
+      SPRING_PROFILES_ACTIVE: web
+    volumes:
+      - ./data/messages:/app/data/messages
+    depends_on:
+      elasticmq:
+        condition: service_healthy
+
+  sqs-batch:
+    build: ./sqs-admin
+    command: ["java", "-jar", "/app/app.jar", "--spring.profiles.active=batch"]
+    environment:
+      AWS_SQS_ENDPOINT: http://elasticmq:9324
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: x
+      AWS_SECRET_ACCESS_KEY: x
+      MESSAGE_STORAGE_DIR: /app/data/messages
+      BATCH_POLL_INTERVAL_MS: 5000
+    volumes:
+      - ./data/messages:/app/data/messages
+    depends_on:
+      elasticmq:
+        condition: service_healthy
+      sqs-app:
+        condition: service_started

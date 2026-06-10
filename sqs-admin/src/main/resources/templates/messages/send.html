@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('メッセージ送信', ~{::section})}">
+<section>
+    <div th:replace="~{fragments/alerts :: alerts}"></div>
+
+    <h1 class="h3 mb-3">メッセージ送信</h1>
+
+    <div th:if="${#lists.isEmpty(queues)}" class="alert alert-warning">
+        送信先のキューがありません。
+        <a th:href="@{/queues/new}">キューを作成</a>してください。
+    </div>
+
+    <div class="card shadow-sm" th:unless="${#lists.isEmpty(queues)}">
+        <div class="card-body">
+            <form th:action="@{/messages/send}" th:object="${sendForm}" method="post" class="row g-3" id="sendForm">
+                <div class="col-12">
+                    <label class="form-label">送信先キュー <span class="text-danger">*</span></label>
+                    <select class="form-select" th:field="*{queueUrl}" id="queueSelect" required>
+                        <option value="">— キューを選択 —</option>
+                        <option th:each="q : ${queues}"
+                                th:value="${q.url}"
+                                th:data-fifo="${q.fifo}"
+                                th:data-cbd="${q.attributes['ContentBasedDeduplication'] == 'true'}"
+                                th:text="|${q.name} (${q.fifo ? 'FIFO' : '標準'})|">
+                        </option>
+                    </select>
+                    <div class="text-danger small" th:errors="*{queueUrl}"></div>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">メッセージ本文 <span class="text-danger">*</span></label>
+                    <textarea class="form-control font-monospace" th:field="*{body}" rows="8"
+                              placeholder="送信するメッセージ本文"></textarea>
+                    <div class="text-danger small" th:errors="*{body}"></div>
+                </div>
+
+                <div class="col-md-4" id="delayField">
+                    <label class="form-label">DelaySeconds</label>
+                    <input class="form-control" type="number" th:field="*{delaySeconds}" min="0" max="900"/>
+                    <div class="form-text">標準キューのみ（0〜900 秒）</div>
+                    <div class="text-danger small" th:errors="*{delaySeconds}"></div>
+                </div>
+
+                <div class="col-md-4" id="fifoGroupField" style="display:none">
+                    <label class="form-label">MessageGroupId</label>
+                    <input class="form-control" th:field="*{messageGroupId}" placeholder="default-group"/>
+                    <div class="form-text">FIFO 必須（未入力時は default-group）</div>
+                </div>
+
+                <div class="col-md-4" id="fifoDedupField" style="display:none">
+                    <label class="form-label">MessageDeduplicationId</label>
+                    <input class="form-control" th:field="*{messageDeduplicationId}"
+                           placeholder="未入力時は自動生成"/>
+                    <div class="form-text" id="dedupHint">ContentBasedDeduplication 無効時は必須（未入力なら UUID を自動付与）</div>
+                </div>
+
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">送信</button>
+                    <a class="btn btn-link" th:href="@{/queues}">キュー一覧へ</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        const queueSelect = document.getElementById('queueSelect');
+        const delayField = document.getElementById('delayField');
+        const fifoGroupField = document.getElementById('fifoGroupField');
+        const fifoDedupField = document.getElementById('fifoDedupField');
+        const dedupHint = document.getElementById('dedupHint');
+
+        function selectedOption() {
+            if (!queueSelect || queueSelect.selectedIndex < 0) return null;
+            return queueSelect.options[queueSelect.selectedIndex];
+        }
+
+        function isFifoSelected() {
+            const opt = selectedOption();
+            return opt && opt.getAttribute('data-fifo') === 'true';
+        }
+
+        function toggleFields() {
+            const opt = selectedOption();
+            const fifo = isFifoSelected();
+            const cbd = opt && opt.getAttribute('data-cbd') === 'true';
+            if (delayField) delayField.style.display = fifo ? 'none' : 'block';
+            if (fifoGroupField) fifoGroupField.style.display = fifo ? 'block' : 'none';
+            if (fifoDedupField) fifoDedupField.style.display = fifo ? 'block' : 'none';
+            if (dedupHint && fifo) {
+                dedupHint.textContent = cbd
+                    ? 'キューで ContentBasedDeduplication 有効。未入力時は本文から ID を自動生成します。'
+                    : 'ContentBasedDeduplication 無効。未入力時は送信ごとに UUID を自動付与します。';
+            }
+        }
+
+        queueSelect?.addEventListener('change', toggleFields);
+        toggleFields();
+    </script>
+</section>
+</html>

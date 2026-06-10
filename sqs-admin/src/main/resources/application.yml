@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: sqs-admin
+  thymeleaf:
+    cache: false
+
+aws:
+  sqs:
+    endpoint: ${AWS_SQS_ENDPOINT:http://localhost:9324}
+    region: ${AWS_REGION:us-east-1}
+    access-key-id: ${AWS_ACCESS_KEY_ID:x}
+    secret-access-key: ${AWS_SECRET_ACCESS_KEY:x}
+
+message:
+  storage-dir: ${MESSAGE_STORAGE_DIR:./data/messages}
+
+batch:
+  poll-interval-ms: ${BATCH_POLL_INTERVAL_MS:5000}
+  max-messages: 10
+  # 全キューを順にポーリングするため、1キューあたりの待機は短め（秒）
+  wait-time-seconds: ${BATCH_WAIT_TIME_SECONDS:1}

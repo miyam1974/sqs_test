@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('キュー一覧', ~{::section})}">
+<section>
+    <div th:replace="~{fragments/alerts :: alerts}"></div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">キュー一覧</h1>
+        <a class="btn btn-primary" th:href="@{/queues/new}">新規作成</a>
+    </div>
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th>名前</th>
+                    <th>タイプ</th>
+                    <th>待機メッセージ数</th>
+                    <th>可視性タイムアウト</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(queues)}">
+                    <td colspan="5" class="text-muted text-center py-4">キューがありません</td>
+                </tr>
+                <tr th:each="q : ${queues}">
+                    <td>
+                        <a th:href="@{/queues/{enc}(enc=${@sqsWeb.encodeQueueUrl(q.url)})}"
+                           th:text="${q.name}">queue</a>
+                    </td>
+                    <td>
+                        <span th:if="${q.fifo}" class="badge bg-info">FIFO</span>
+                        <span th:unless="${q.fifo}" class="badge bg-secondary">Standard</span>
+                    </td>
+                    <td th:text="${q.attributes['ApproximateNumberOfMessages'] ?: '0'}">0</td>
+                    <td th:text="${q.attributes['VisibilityTimeout'] ?: '-'}">30</td>
+                    <td class="text-end text-nowrap">
+                        <a class="btn btn-sm btn-outline-primary"
+                           th:href="@{/messages/send(queueUrl=${q.url})}">送信</a>
+                        <a class="btn btn-sm btn-outline-secondary"
+                           th:href="@{/queues/{enc}/edit(enc=${@sqsWeb.encodeQueueUrl(q.url)})}">編集</a>
+                        <form class="d-inline"
+                              th:action="@{/queues/{enc}/delete(enc=${@sqsWeb.encodeQueueUrl(q.url)})}"
+                              method="post"
+                              onsubmit="return confirm('このキューを削除しますか？');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">削除</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+</html>

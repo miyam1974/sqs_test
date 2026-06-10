@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('キュー詳細', ~{::section})}">
+<section>
+    <div th:replace="~{fragments/alerts :: alerts}"></div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0" th:text="${queue.name}">queue</h1>
+        <span th:replace="~{fragments/queue-type :: badge(${queue.fifo})}"></span>
+    </div>
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">キュータイプ</dt>
+                <dd class="col-sm-9">
+                    <span th:if="${queue.fifo}">FIFO（作成後は変更不可）</span>
+                    <span th:unless="${queue.fifo}">標準（作成後は変更不可）</span>
+                </dd>
+                <dt class="col-sm-3">URL</dt>
+                <dd class="col-sm-9"><code th:text="${queue.url}">url</code></dd>
+                <dt class="col-sm-3">待機メッセージ数</dt>
+                <dd class="col-sm-9" th:text="${queue.attributes['ApproximateNumberOfMessages'] ?: '0'}">0</dd>
+                <dt class="col-sm-3">可視性タイムアウト</dt>
+                <dd class="col-sm-9" th:text="${queue.attributes['VisibilityTimeout'] ?: '-'} + ' 秒'">30</dd>
+                <dt class="col-sm-3">保持期間</dt>
+                <dd class="col-sm-9" th:text="${queue.attributes['MessageRetentionPeriod'] ?: '-'} + ' 秒'">-</dd>
+                <dt class="col-sm-3" th:if="${!queue.fifo}">遅延</dt>
+                <dd class="col-sm-9" th:if="${!queue.fifo}" th:text="${queue.attributes['DelaySeconds'] ?: '0'} + ' 秒'">0</dd>
+                <dt class="col-sm-3" th:if="${queue.fifo}">重複排除</dt>
+                <dd class="col-sm-9" th:if="${queue.fifo}"
+                    th:text="${queue.attributes['ContentBasedDeduplication'] == 'true' ? '有効' : '無効'}">-</dd>
+            </dl>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-primary"
+           th:href="@{/messages/send(queueUrl=${queue.url})}">メッセージ送信</a>
+        <a class="btn btn-outline-secondary"
+           th:href="@{/queues/{enc}/edit(enc=${@sqsWeb.encodeQueueUrl(queue.url)})}">属性を編集</a>
+        <a class="btn btn-link" th:href="@{/queues}">一覧へ</a>
+        <form class="ms-auto" th:action="@{/queues/{enc}/delete(enc=${@sqsWeb.encodeQueueUrl(queue.url)})}"
+              method="post"
+              onsubmit="return confirm('このキューを削除しますか？');">
+            <button type="submit" class="btn btn-outline-danger">削除</button>
+        </form>
+    </div>
+</section>
+</html>

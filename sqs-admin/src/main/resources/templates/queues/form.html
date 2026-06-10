@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('キュー作成', ~{::section})}">
+<section>
+    <div th:replace="~{fragments/alerts :: alerts}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
+    <h1 class="h3 mb-3">キュー作成</h1>
+    <p class="text-muted small">AWS SQS CreateQueue で指定できる属性をすべて設定できます（ローカル ElasticMQ では未対応の項目がある場合があります）。</p>
+
+    <form th:action="@{/queues}" th:object="${queueForm}" method="post" id="createForm">
+
+        <!-- 基本 -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold">基本</div>
+            <div class="card-body row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">キュー名 <span class="text-danger">*</span></label>
+                    <input class="form-control" th:field="*{name}" placeholder="my-queue" id="queueName"/>
+                    <div class="text-danger small" th:errors="*{name}"></div>
+                    <div class="form-text" id="nameHint">英数字・ハイフン・アンダースコア</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">キュータイプ <span class="text-danger">*</span></label>
+                    <div th:replace="~{fragments/queue-type :: selector}"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- メッセージ設定（共通） -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold">メッセージ設定</div>
+            <div class="card-body row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">DelaySeconds</label>
+                    <input class="form-control" type="number" th:field="*{delaySeconds}" min="0" max="900"/>
+                    <div class="form-text">0〜900 秒。全メッセージの配信遅延</div>
+                    <div class="text-danger small" th:errors="*{delaySeconds}"></div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">MaximumMessageSize</label>
+                    <input class="form-control" type="number" th:field="*{maximumMessageSize}" min="1024" max="1048576"/>
+                    <div class="form-text">1024〜1048576 バイト</div>
+                    <div class="text-danger small" th:errors="*{maximumMessageSize}"></div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">MessageRetentionPeriod</label>
+                    <input class="form-control" type="number" th:field="*{messageRetentionPeriod}" min="60" max="1209600"/>
+                    <div class="form-text">60〜1209600 秒（最大14日）</div>
+                    <div class="text-danger small" th:errors="*{messageRetentionPeriod}"></div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">ReceiveMessageWaitTimeSeconds</label>
+                    <input class="form-control" type="number" th:field="*{receiveMessageWaitTimeSeconds}" min="0" max="20"/>
+                    <div class="form-text">ロングポーリング 0〜20 秒</div>
+                    <div class="text-danger small" th:errors="*{receiveMessageWaitTimeSeconds}"></div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">VisibilityTimeout</label>
+                    <input class="form-control" type="number" th:field="*{visibilityTimeout}" min="0" max="43200"/>
+                    <div class="form-text">0〜43200 秒（最大12時間）</div>
+                    <div class="text-danger small" th:errors="*{visibilityTimeout}"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FIFO -->
+        <div class="card shadow-sm mb-3" id="fifoSection">
+            <div class="card-header fw-semibold">FIFO 専用</div>
+            <div class="card-body row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">ContentBasedDeduplication</label>
+                    <select class="form-select" th:field="*{contentBasedDeduplicationMode}">
+                        <option value="unset">未設定（デフォルト）</option>
+                        <option value="true">true（有効）</option>
+                        <option value="false">false（無効）</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">DeduplicationScope</label>
+                    <select class="form-select" th:field="*{deduplicationScope}">
+                        <option th:each="opt : ${deduplicationScopes}"
+                                th:value="${opt.name()}" th:text="${opt.label}"></option>
+                    </select>
+                    <div class="text-danger small" th:errors="*{fifoThroughputConfigValid}"></div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">FifoThroughputLimit</label>
+                    <select class="form-select" th:field="*{fifoThroughputLimit}" id="fifoThroughputLimit">
+                        <option th:each="opt : ${fifoThroughputLimits}"
+                                th:value="${opt.name()}" th:text="${opt.label}"></option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- DLQ RedrivePolicy -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold">デッドレターキュー (RedrivePolicy)</div>
+            <div class="card-body row g-3">
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" th:field="*{redriveEnabled}" id="redriveEnabled"/>
+                        <label class="form-check-label" for="redriveEnabled">RedrivePolicy を設定する</label>
+                    </div>
+                </div>
+                <div id="redriveFields" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">deadLetterTargetArn</label>
+                        <input class="form-control" th:field="*{deadLetterTargetArn}"
+                               placeholder="arn:aws:sqs:us-east-1:000000000000:my-dlq.fifo"/>
+                        <div class="form-text">ARN を直接指定（ローカルは 000000000000 アカウント）</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">または DLQ キュー名</label>
+                        <select class="form-select" th:field="*{deadLetterQueueName}">
+                            <option value="">— 選択 —</option>
+                            <option th:each="q : ${existingQueues}" th:value="${q.name}" th:text="${q.name}"></option>
+                        </select>
+                        <div class="form-text">既存キューから選択（ARN は自動生成）</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">maxReceiveCount</label>
+                        <input class="form-control" type="number" th:field="*{maxReceiveCount}" min="1" max="1000"/>
+                        <div class="text-danger small" th:errors="*{maxReceiveCount}"></div>
+                    </div>
+                    <div class="col-12 text-danger small" th:errors="*{redriveConfigValid}"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RedriveAllowPolicy -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold">DLQ 許可 (RedriveAllowPolicy)</div>
+            <div class="card-body row g-3">
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" th:field="*{redriveAllowEnabled}" id="redriveAllowEnabled"/>
+                        <label class="form-check-label" for="redriveAllowEnabled">RedriveAllowPolicy を設定する</label>
+                    </div>
+                </div>
+                <div id="redriveAllowFields" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">redrivePermission</label>
+                        <select class="form-select" th:field="*{redrivePermission}" id="redrivePermission">
+                            <option th:each="p : ${redrivePermissions}"
+                                    th:value="${p.name()}" th:text="${p.label}"></option>
+                        </select>
+                    </div>
+                    <div class="col-md-8" id="sourceArnsField">
+                        <label class="form-label">sourceQueueArns</label>
+                        <textarea class="form-control" th:field="*{sourceQueueArns}" rows="2"
+                                  placeholder="ARN をカンマまたは改行区切り"></textarea>
+                        <div class="form-text">byQueue 選択時は必須（最大10件）</div>
+                    </div>
+                    <div class="col-12 text-danger small" th:errors="*{redriveAllowConfigValid}"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 暗号化 -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold">サーバーサイド暗号化</div>
+            <div class="card-body row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">暗号化方式</label>
+                    <select class="form-select" th:field="*{sseMode}" id="sseMode">
+                        <option th:each="m : ${sseModes}" th:value="${m.name()}" th:text="${m.label}"></option>
+                    </select>
+                    <div class="form-text">SQS マネージド SSE と KMS は同時指定不可</div>
+                </div>
+                <div class="col-md-4" id="kmsKeyField">
+                    <label class="form-label">KmsMasterKeyId</label>
+                    <input class="form-control" th:field="*{kmsMasterKeyId}" placeholder="alias/aws/sqs"/>
+                    <div class="text-danger small" th:errors="*{kmsConfigValid}"></div>
+                </div>
+                <div class="col-md-4" id="kmsReuseField">
+                    <label class="form-label">KmsDataKeyReusePeriodSeconds</label>
+                    <input class="form-control" type="number" th:field="*{kmsDataKeyReusePeriodSeconds}" min="60" max="86400"/>
+                    <div class="form-text">60〜86400 秒（KMS 時）</div>
+                    <div class="text-danger small" th:errors="*{kmsDataKeyReusePeriodSeconds}"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Policy & Tags -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold">ポリシー・タグ</div>
+            <div class="card-body row g-3">
+                <div class="col-12">
+                    <label class="form-label">Policy（JSON）</label>
+                    <textarea class="form-control font-monospace" th:field="*{policy}" rows="4"
+                              placeholder='{"Version":"2012-10-17",...}'></textarea>
+                    <div class="form-text">空欄の場合は送信しません</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">tags</label>
+                    <textarea class="form-control font-monospace" th:field="*{tagsText}" rows="3"
+                              placeholder="env=local&#10;team=dev"></textarea>
+                    <div class="form-text">1行1タグ、key=value 形式（CreateQueue の tags パラメータ）</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <button type="submit" class="btn btn-primary">作成</button>
+            <a class="btn btn-link" th:href="@{/queues}">キャンセル</a>
+        </div>
+    </form>
+
+    <script>
+        const typeStandard = document.getElementById('queueTypeStandard');
+        const typeFifo = document.getElementById('queueTypeFifo');
+        const fifoSection = document.getElementById('fifoSection');
+        const nameHint = document.getElementById('nameHint');
+        const redriveEnabled = document.getElementById('redriveEnabled');
+        const redriveFields = document.getElementById('redriveFields');
+        const redriveAllowEnabled = document.getElementById('redriveAllowEnabled');
+        const redriveAllowFields = document.getElementById('redriveAllowFields');
+        const redrivePermission = document.getElementById('redrivePermission');
+        const sourceArnsField = document.getElementById('sourceArnsField');
+        const sseMode = document.getElementById('sseMode');
+        const kmsKeyField = document.getElementById('kmsKeyField');
+        const kmsReuseField = document.getElementById('kmsReuseField');
+
+        function isFifo() {
+            return typeFifo && typeFifo.checked;
+        }
+
+        function toggleFifo() {
+            const fifo = isFifo();
+            fifoSection.style.display = fifo ? 'block' : 'none';
+            nameHint.textContent = fifo
+                ? 'FIFO: 保存時に .fifo が自動付与（例: orders → orders.fifo）'
+                : '標準キュー名';
+        }
+
+        function toggleRedrive() {
+            const on = redriveEnabled && redriveEnabled.checked;
+            redriveFields.querySelectorAll('input,select,textarea').forEach(el => {
+                if (el.id !== 'redriveEnabled') el.disabled = !on;
+            });
+            redriveFields.style.opacity = on ? '1' : '0.5';
+        }
+
+        function toggleRedriveAllow() {
+            const on = redriveAllowEnabled && redriveAllowEnabled.checked;
+            redriveAllowFields.querySelectorAll('input,select,textarea').forEach(el => {
+                el.disabled = !on;
+            });
+            redriveAllowFields.style.opacity = on ? '1' : '0.5';
+            toggleSourceArns();
+        }
+
+        function toggleSourceArns() {
+            const on = redriveAllowEnabled && redriveAllowEnabled.checked;
+            const byQueue = redrivePermission && redrivePermission.value === 'BY_QUEUE';
+            sourceArnsField.style.display = on && byQueue ? 'block' : 'none';
+        }
+
+        function toggleSse() {
+            const mode = sseMode ? sseMode.value : 'NONE';
+            const kms = mode === 'KMS';
+            kmsKeyField.style.display = kms ? 'block' : 'none';
+            kmsReuseField.style.display = kms ? 'block' : 'none';
+        }
+
+        typeStandard?.addEventListener('change', toggleFifo);
+        typeFifo?.addEventListener('change', toggleFifo);
+        redriveEnabled?.addEventListener('change', toggleRedrive);
+        redriveAllowEnabled?.addEventListener('change', toggleRedriveAllow);
+        redrivePermission?.addEventListener('change', toggleSourceArns);
+        sseMode?.addEventListener('change', toggleSse);
+
+        toggleFifo();
+        toggleRedrive();
+        toggleRedriveAllow();
+        toggleSse();
+    </script>
+</section>
+</html>

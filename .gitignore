@@ -1,0 +1,7 @@
+data/
+sqs-admin/target/
+sqs-admin/.mvn/wrapper/maven-wrapper.jar
+*.class
+.idea/
+*.iml
+.DS_Store
