@@ -141,6 +141,12 @@ sqs_test/
 
 ## ローカル開発（Docker を使わない場合）
 
+### IDE（Cursor / VS Code）
+
+Java 拡張用の設定は `.vscode/settings.json`（共通）と `.vscode/settings.local.json`（個人の JDK / Maven パス）に分けています。詳細は [.vscode/README.md](.vscode/README.md) を参照してください。
+
+### アプリ起動
+
 ElasticMQ を別途起動したうえで:
 
 ```bash

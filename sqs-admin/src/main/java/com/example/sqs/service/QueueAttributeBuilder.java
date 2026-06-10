@@ -1,8 +1,6 @@
 package com.example.sqs.service;
 
 import com.example.sqs.config.AwsSqsProperties;
-import com.example.sqs.model.DeduplicationScopeOption;
-import com.example.sqs.model.FifoThroughputLimitOption;
 import com.example.sqs.model.RedrivePermissionOption;
 import com.example.sqs.model.SseModeOption;
 import com.example.sqs.web.dto.QueueForm;
