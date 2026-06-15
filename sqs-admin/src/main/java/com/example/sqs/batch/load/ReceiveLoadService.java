@@ -50,6 +50,7 @@ public class ReceiveLoadService {
                 null,
                 args.batchSize(),
                 args.useBatchApi(),
+                null,
                 null);
 
         try (ExecutorService executor = Executors.newFixedThreadPool(args.threads())) {

@@ -27,13 +27,14 @@ public class SendLoadRunner implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         try {
             LoadTestCliArgs cliArgs = LoadTestCliArgs.parseSend(args);
-            log.info("Starting send load test: queue={} threads={} total={} batchSize={} useBatchApi={} messageLength={}",
+            log.info("Starting send load test: queue={} threads={} total={} batchSize={} useBatchApi={} messageLength={} messageGroup={}",
                     cliArgs.queueName(),
                     cliArgs.threads(),
                     cliArgs.totalCount(),
                     cliArgs.useBatchApi() ? cliArgs.batchSize() : "omitted",
                     cliArgs.useBatchApi(),
-                    cliArgs.messageLengthBytes());
+                    cliArgs.messageLengthBytes(),
+                    formatMessageGroupMode(cliArgs.sharedMessageGroupId()));
             LoadTestReport report = sendLoadService.run(cliArgs);
             report.logSummary();
             exit(report.hasErrors() ? 1 : 0);
@@ -45,5 +46,12 @@ public class SendLoadRunner implements ApplicationRunner {
 
     private void exit(int code) {
         SpringApplication.exit(applicationContext, () -> code);
+    }
+
+    private static String formatMessageGroupMode(String sharedMessageGroupId) {
+        if (sharedMessageGroupId != null) {
+            return sharedMessageGroupId + " (shared across threads)";
+        }
+        return "thread-{n} per thread";
     }
 }

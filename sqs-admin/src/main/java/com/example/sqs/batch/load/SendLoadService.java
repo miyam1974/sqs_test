@@ -48,7 +48,8 @@ public class SendLoadService {
                 args.totalCount(),
                 args.batchSize(),
                 args.useBatchApi(),
-                args.messageLengthBytes());
+                args.messageLengthBytes(),
+                args.sharedMessageGroupId());
 
         int[] perThreadCounts = CountSplitter.split(args.totalCount(), args.threads());
         try (ExecutorService executor = Executors.newFixedThreadPool(args.threads())) {
@@ -68,7 +69,8 @@ public class SendLoadService {
                         count,
                         args.batchSize(),
                         args.useBatchApi(),
-                        args.messageLengthBytes())));
+                        args.messageLengthBytes(),
+                        args.sharedMessageGroupId())));
             }
             for (int i = 0; i < futures.size(); i++) {
                 ThreadResult result = futures.get(i).get();
@@ -88,8 +90,11 @@ public class SendLoadService {
             int targetCount,
             int batchSize,
             boolean useBatchApi,
-            int messageLengthBytes) {
-        String messageGroupId = "thread-" + threadIndex;
+            int messageLengthBytes,
+            String sharedMessageGroupId) {
+        String messageGroupId = sharedMessageGroupId != null
+                ? sharedMessageGroupId
+                : "thread-" + threadIndex;
         int processed = 0;
         int errors = 0;
         int remaining = targetCount;
@@ -105,7 +110,8 @@ public class SendLoadService {
                             threadIndex,
                             processed,
                             currentBatchSize,
-                            messageLengthBytes);
+                            messageLengthBytes,
+                            messageGroupId);
                     int failed = currentBatchSize - succeeded;
                     processed += succeeded;
                     errors += failed;
@@ -154,8 +160,8 @@ public class SendLoadService {
             int threadIndex,
             int processed,
             int currentBatchSize,
-            int messageLengthBytes) {
-        String messageGroupId = "thread-" + threadIndex;
+            int messageLengthBytes,
+            String messageGroupId) {
         List<SendMessageBatchRequestEntry> entries = new ArrayList<>(currentBatchSize);
         for (int i = 0; i < currentBatchSize; i++) {
             SendMessageBatchRequestEntry.Builder entryBuilder = SendMessageBatchRequestEntry.builder()

@@ -8,8 +8,11 @@ public record LoadTestCliArgs(
         Integer totalCount,
         int batchSize,
         boolean useBatchApi,
-        Integer messageLengthBytes
+        Integer messageLengthBytes,
+        String sharedMessageGroupId
 ) {
+
+    private static final String DEFAULT_SHARED_MESSAGE_GROUP_ID = "load-test";
 
     public static LoadTestCliArgs parseSend(ApplicationArguments args) {
         String queueName = require(args, "queue-name");
@@ -17,13 +20,15 @@ public record LoadTestCliArgs(
         int totalCount = parseInt(require(args, "total-count"), "total-count", 1, Integer.MAX_VALUE);
         BatchSizeOption batchSizeOption = parseBatchSize(args);
         int messageLength = parseInt(require(args, "message-length"), "message-length", 1, 256 * 1024);
+        String sharedMessageGroupId = parseSharedMessageGroupId(args);
         return new LoadTestCliArgs(
                 queueName,
                 threads,
                 totalCount,
                 batchSizeOption.value(),
                 batchSizeOption.useBatchApi(),
-                messageLength);
+                messageLength,
+                sharedMessageGroupId);
     }
 
     public static LoadTestCliArgs parseReceive(ApplicationArguments args) {
@@ -39,7 +44,25 @@ public record LoadTestCliArgs(
                 null,
                 batchSizeOption.value(),
                 batchSizeOption.useBatchApi(),
+                null,
                 null);
+    }
+
+    private static String parseSharedMessageGroupId(ApplicationArguments args) {
+        if (args.containsOption("message-group-id") && !args.containsOption("single-message-group")) {
+            throw new IllegalArgumentException("--message-group-id requires --single-message-group");
+        }
+        if (!args.containsOption("single-message-group")) {
+            return null;
+        }
+        if (!args.containsOption("message-group-id")) {
+            return DEFAULT_SHARED_MESSAGE_GROUP_ID;
+        }
+        var values = args.getOptionValues("message-group-id");
+        if (values == null || values.isEmpty() || values.getFirst().isBlank()) {
+            return DEFAULT_SHARED_MESSAGE_GROUP_ID;
+        }
+        return values.getFirst().trim();
     }
 
     private static BatchSizeOption parseBatchSize(ApplicationArguments args) {

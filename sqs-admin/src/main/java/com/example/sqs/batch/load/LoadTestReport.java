@@ -18,6 +18,7 @@ public class LoadTestReport {
     private final int batchSize;
     private final boolean useBatchApi;
     private final Integer messageLengthBytes;
+    private final String sharedMessageGroupId;
     private final long startedAtNanos;
     private final List<ThreadStats> threadStats = new ArrayList<>();
 
@@ -31,7 +32,8 @@ public class LoadTestReport {
             Integer requestedTotal,
             int batchSize,
             boolean useBatchApi,
-            Integer messageLengthBytes) {
+            Integer messageLengthBytes,
+            String sharedMessageGroupId) {
         this.kind = kind;
         this.queueName = queueName;
         this.threads = threads;
@@ -39,6 +41,7 @@ public class LoadTestReport {
         this.batchSize = batchSize;
         this.useBatchApi = useBatchApi;
         this.messageLengthBytes = messageLengthBytes;
+        this.sharedMessageGroupId = sharedMessageGroupId;
         this.startedAtNanos = System.nanoTime();
     }
 
@@ -72,6 +75,13 @@ public class LoadTestReport {
         }
         if (messageLengthBytes != null) {
             log.info("Message length:    {} bytes", messageLengthBytes);
+        }
+        if ("Send".equals(kind)) {
+            if (sharedMessageGroupId != null) {
+                log.info("Message group:     {} (shared across threads)", sharedMessageGroupId);
+            } else {
+                log.info("Message group:     thread-{{n}} per thread");
+            }
         }
         log.info("Duration:          {} s", format(elapsedSeconds));
         log.info("Throughput:        {} msg/s", format(throughput));

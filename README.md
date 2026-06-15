@@ -63,7 +63,7 @@ sqs-batch ──────┘（常駐・全キューポーリング）
 
 - 指定キューへ **印字可能 ASCII のランダム本文** を送信（`--message-length` バイト）
 - 合計件数（`--total-count`）をスレッド数で分担（例: 1000 件 / 5 スレッド → 各 200 件）
-- FIFO キューはスレッドごとに `MessageGroupId=thread-{n}` を付与
+- FIFO キューは既定でスレッドごとに `MessageGroupId=thread-{n}` を付与（`--single-message-group` で全スレッド共通に変更可）
 - キュー名は FIFO でも `.fifo` 省略可（例: `fifo1` → `fifo1.fifo`）
 - 終了時にスループット・所要時間等の **レポートをログ出力**
 
@@ -87,6 +87,8 @@ sqs-batch ──────┘（常駐・全キューポーリング）
 | `--total-count` | 必須 | 不可 | 合計送信件数 |
 | `--message-length` | 必須 | — | 本文バイト長 |
 | `--batch-size` | 省略可 | 省略可 | 1〜10。省略時は単体 API、明示時はバッチ API |
+| `--single-message-group` | 省略可 | — | FIFO 向け。全スレッドで同一 `MessageGroupId` を使用 |
+| `--message-group-id` | 省略可 | — | `--single-message-group` 指定時の ID（省略時は `load-test`） |
 
 **`--batch-size` と SQS API の対応**
 
@@ -127,6 +129,23 @@ docker compose --profile load-test run --rm sqs-send-load \
   --message-length=256 \
   --batch-size=10
 
+# --- 送信: FIFO・全スレッド同一 MessageGroupId ---
+docker compose --profile load-test run --rm sqs-send-load \
+  --queue-name=fifo1.fifo \
+  --threads=5 \
+  --total-count=1000 \
+  --message-length=256 \
+  --single-message-group
+
+# --- 送信: 共有 MessageGroupId を明示 ---
+docker compose --profile load-test run --rm sqs-send-load \
+  --queue-name=fifo1.fifo \
+  --threads=5 \
+  --total-count=1000 \
+  --message-length=256 \
+  --single-message-group \
+  --message-group-id=my-group
+
 # --- 受信: キューが空になるまで（単体 API）---
 docker compose --profile load-test run --rm sqs-receive-load \
   --queue-name=fifo1.fifo \
@@ -161,6 +180,7 @@ Requested total:   1000
 Processed total:   1000
 Batch size:        omitted (single API)
 Message length:    256 bytes
+Message group:     load-test (shared across threads)
 Duration:          11.23 s
 Throughput:        89.05 msg/s
 Errors:            0
@@ -228,6 +248,88 @@ docker compose down
 docker compose logs -f sqs-app
 docker compose logs -f sqs-batch
 ```
+
+## 負荷試験コマンド例
+
+`elasticmq` が起動していること。常駐バッチ `sqs-batch` が動作中だとメッセージを先に受信・削除するため、負荷試験時は停止しておくことを推奨します。
+
+```bash
+docker compose stop sqs-batch
+```
+
+コード変更後はイメージを再ビルドしてから実行してください。
+
+```bash
+docker compose --profile load-test build sqs-send-load sqs-receive-load
+```
+
+### 送信コマンド例
+
+`sample-queue`（`elasticmq.conf` で定義済み）へ 1000 件・256 バイトのランダム本文を 5 スレッドで送信します。
+
+```bash
+docker compose --profile load-test run --rm sqs-send-load \
+  --queue-name=sample-queue \
+  --threads=5 \
+  --total-count=1000 \
+  --message-length=256
+```
+
+バッチ API（`SendMessageBatch`）を使う場合は `--batch-size` を追加します（1〜10）。
+
+```bash
+docker compose --profile load-test run --rm sqs-send-load \
+  --queue-name=sample-queue \
+  --threads=5 \
+  --total-count=1000 \
+  --message-length=256 \
+  --batch-size=10
+```
+
+FIFO キューで全スレッドが同一 `MessageGroupId` を使う場合（省略時は `load-test`）:
+
+```bash
+docker compose --profile load-test run --rm sqs-send-load \
+  --queue-name=fifo1 \
+  --threads=5 \
+  --total-count=1000 \
+  --message-length=256 \
+  --single-message-group \
+  --message-group-id=load-test
+```
+
+### 受信コマンド例
+
+指定キューが空になるまで受信・保存・削除します（件数指定なし。各スレッドが空受信で終了）。
+
+```bash
+docker compose --profile load-test run --rm sqs-receive-load \
+  --queue-name=sample-queue \
+  --threads=5
+```
+
+バッチ API で受信・削除する場合:
+
+```bash
+docker compose --profile load-test run --rm sqs-receive-load \
+  --queue-name=sample-queue \
+  --threads=5 \
+  --batch-size=10
+```
+
+### 送信 → 受信の一連の流れ
+
+```bash
+# 1. 送信
+docker compose --profile load-test run --rm sqs-send-load \
+  --queue-name=sample-queue --threads=1 --total-count=1000 --message-length=256
+
+# 2. 受信（キューが空になるまで）
+docker compose --profile load-test run --rm sqs-receive-load \
+  --queue-name=sample-queue --threads=5
+```
+
+FIFO キューの場合は `--queue-name=fifo1` のように `.fifo` を省略できます。CLI 引数の詳細は後述の「負荷試験バッチ」節を参照してください。
 
 ## 動作確認の例
 
